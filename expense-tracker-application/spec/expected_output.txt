@@ -1,0 +1,45 @@
+Commands:
+  add DATE AMOUNT CATEGORY DESCRIPTION   append one expense and persist it
+  list                                   print all expenses in file order
+  filter [--from D] [--to D] [--category C]  print matching expenses
+  search TEXT                            print expenses whose description matches
+  summary [--parallel]                   print per-category totals, then the total
+  help                                   print this list
+  quit                                   exit
+2026-09-01      42.50  groceries    Weekly shop
+2026-09-03      12.00  transport    Bus pass top-up
+2026-09-07      89.99  utilities    Electricity bill
+2026-09-12      23.75  groceries    Produce market
+2026-09-15     150.00  rent         Parking space
+2026-09-03      12.00  transport    Bus pass top-up
+2026-09-07      89.99  utilities    Electricity bill
+2026-09-12      23.75  groceries    Produce market
+2026-09-01      42.50  groceries    Weekly shop
+2026-09-12      23.75  groceries    Produce market
+2026-09-01      42.50  groceries    Weekly shop
+2026-09-03      12.00  transport    Bus pass top-up
+2026-09-12      23.75  groceries    Produce market
+groceries          66.25
+rent              150.00
+transport          12.00
+utilities          89.99
+------------------------
+TOTAL             318.24
+groceries          66.25
+rent              150.00
+transport          12.00
+utilities          89.99
+------------------------
+TOTAL             318.24
+2026-09-01      42.50  groceries    Weekly shop
+2026-09-03      12.00  transport    Bus pass top-up
+2026-09-07      89.99  utilities    Electricity bill
+2026-09-12      23.75  groceries    Produce market
+2026-09-15     150.00  rent         Parking space
+2026-09-20      61.40  groceries    Late night snacks
+groceries         127.65
+rent              150.00
+transport          12.00
+utilities          89.99
+------------------------
+TOTAL             379.64

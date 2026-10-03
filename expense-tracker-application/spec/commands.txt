@@ -1,0 +1,16 @@
+help
+list
+filter --from 2026-09-03 --to 2026-09-12
+filter --category groceries
+filter --from 2026-09-01 --to 2026-09-07 --category groceries
+filter --category nosuch
+search BUS
+search market
+search xyzzy
+summary
+summary --parallel
+add 2026-09-20 61.40 groceries Late night snacks
+list
+summary
+bogus
+quit
