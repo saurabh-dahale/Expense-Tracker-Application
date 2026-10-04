@@ -284,7 +284,7 @@ Two layers, because each catches what the other cannot.
 
 ```bash
 make -C cpp test          # C++, 44 assertions
-python3 -m pytest python  # Python, 56 cases
+python3 -m pytest python  # Python, 55 cases
 ```
 
 Both suites cover the same cases, named in Section 6 of the planning document:
