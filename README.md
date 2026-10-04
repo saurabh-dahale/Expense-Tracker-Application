@@ -81,12 +81,13 @@ C++ builds with the provided Makefile:
 make -C cpp
 ```
 
-That produces two binaries in `cpp/`:
+That produces three binaries in `cpp/`:
 
 | Binary | Purpose |
 |---|---|
 | `cpp/expense_tracker` | the application |
 | `cpp/run_tests` | the unit test suite |
+| `cpp/run_bench` | the summary timing benchmark, see [Measured results](#measured-results) |
 
 Compiler flags are `-std=c++17 -Wall -Wextra -O2 -pthread`. Warnings are on
 deliberately, because the analysis cites compiler diagnostics as evidence and
@@ -431,6 +432,7 @@ expense-tracker-crosslang/
     expected_output.txt    frozen reference output, the contract
     commands.txt           scripted command sequence
     run_diff.sh            the acceptance test
+    gen_large_csv.py       generates the large timing fixture (not committed)
   python/
     expense.py             record type, parsing, validation
     formatting.py          the entire output contract
@@ -438,6 +440,7 @@ expense-tracker-crosslang/
     queries.py             filter and search
     summary.py             aggregation, sequential and parallel
     main.py                command loop
+    bench.py               summary timing benchmark
     test_expense.py        parsing and formatting tests
     test_queries.py        filter, search, reference-semantics tests
     test_summary.py        aggregation and parallel-agreement tests
@@ -449,7 +452,8 @@ expense-tracker-crosslang/
     summary.h              aggregation, sequential and parallel
     main.cpp               command loop
     tests.cpp              unit tests
-    Makefile               build, test, clean
+    bench.cpp              summary timing benchmark
+    Makefile               build, test, bench, clean
     BUILD.md               C++ specific build and run notes
 ```
 
@@ -496,25 +500,83 @@ cross-language contract is itself an observation about writability.
 
 ## Measured results
 
-Measured on a 200,000-row generated fixture, two cores, best of three runs.
+### How to reproduce
 
-| Run | Wall time | Peak RSS |
+The command-line programs cannot show the concurrency result on their own,
+because on a large file almost all of their run time goes on loading the CSV.
+A separate benchmark program in each language loads the file once, untimed,
+then times only the sequential and parallel summary calls. Neither benchmark
+touches `main`, so the byte-identical output contract is unaffected.
+
+```bash
+# 1. Generate the large fixture: 1,000,000 rows, about 42 MB, deterministic.
+python3 spec/gen_large_csv.py                  # writes spec/expenses_large.csv
+
+# 2. Time both implementations.
+make -C cpp bench                              # C++
+python3 python/bench.py                        # Python
+```
+
+| Option | Applies to | Meaning |
 |---|---|---|
-| C++ `summary` | 0.145 s | 25.8 MB |
-| C++ `summary --parallel` | 0.164 s | 25.8 MB |
-| Python `summary` | 1.354 s | 88.2 MB |
-| Python `summary --parallel` | 1.344 s | 89.9 MB |
+| `--rows N` | generator | Number of rows. Default 1,000,000. |
+| `--seed S` | generator | Random seed. Same seed, byte-identical file. Default 2026. |
+| `--out PATH` | generator | Output path. Default `spec/expenses_large.csv`. |
+| `--file PATH` | both benchmarks | Input file. Default `spec/expenses_large.csv`. |
+| `--runs N` | both benchmarks | Timed runs per mode, after one untimed warm-up. Default 5. |
+| `--threads LIST` | both benchmarks | Worker counts to try, e.g. `1,2,4,8`. |
 
-Two caveats that matter more than the numbers:
+The generated file is listed in `.gitignore`. It takes about two seconds to
+regenerate, and every row follows the shared field rules, so both programs load
+it with zero rows skipped.
 
-1. These timings cover the whole process, which is dominated by loading and
-   parsing rather than by the summary itself. Timing the aggregation alone is
-   required before drawing conclusions about the concurrent path.
-2. Python showed no speedup, as predicted. C++ was also slightly **slower** in
-   parallel, because this machine has two cores and thread setup plus the mutex
-   merge cost more than the work saved at this input size. The prediction that
-   C++ scales therefore needs qualifying by core count rather than being stated
-   flat.
+Each benchmark checks every parallel result against the sequential one before
+timing it and exits with status 1 on a mismatch, so a timing is never reported
+for a wrong answer. `bench.py` also reports whether the interpreter lock is
+enabled, because Python 3.13 and later can be built free-threaded, and on such
+a build the Python prediction below would not hold.
+
+### Summary timings
+
+1,000,000 rows, Apple M2 (8 cores: 4 performance, 4 efficiency), Apple clang
+21 at `-O2`, Python 3.14.6 with the GIL enabled. Best of 5 runs after one
+warm-up, summary call only.
+
+| Mode | C++ ms | C++ speedup | Python ms | Python speedup |
+|---|---:|---:|---:|---:|
+| sequential | 22.21 | 1.00x | 132.13 | 1.00x |
+| parallel, 1 thread | 21.66 | 1.03x | 132.61 | 1.00x |
+| parallel, 2 threads | 11.71 | 1.90x | 139.68 | 0.95x |
+| parallel, 4 threads | 6.11 | 3.64x | 140.99 | 0.94x |
+| parallel, 8 threads | 4.69 | 4.74x | 138.21 | 0.96x |
+
+- **C++ scales.** Close to linear up to 4 threads, then flattening at 8. The
+  M2's second four cores are efficiency cores, so 8 threads are not 8 equal
+  workers. Memory bandwidth may also contribute.
+- **Python does not.** Every parallel run is 4 to 6 percent *slower* than
+  sequential. The interpreter lock serializes the CPU-bound accumulation, and
+  the thread pool adds overhead without adding throughput. This is the
+  negative result the plan said to report as the finding.
+
+### Whole-process cost at the same scale
+
+Running `summary` once through the command-line program on the same file,
+measured with `/usr/bin/time -l`:
+
+| | Wall time | Peak RSS |
+|---|---:|---:|
+| C++ | 0.41 s | 152 MB |
+| Python | 3.47 s | 394 MB |
+
+Loading dominates both. The benchmark reports the load separately: 0.44 s for
+C++ and 3.35 s for Python, about 7.7x. The summary itself is under 6 percent of
+the C++ run and under 4 percent of the Python run, which is why timing the
+whole process cannot show the concurrency result.
+
+An earlier whole-process measurement on a two-core machine with 200,000 rows
+showed C++ `--parallel` slightly *slower* than sequential. At that size and
+core count, thread start-up and the mutex merge cost more than they saved. That
+run is kept in `ANALYSIS.md` section 4.1 as a record of why the method changed.
 
 ---
 
@@ -536,6 +598,11 @@ its path from anywhere, as it resolves the root itself.
 **pytest reports `ModuleNotFoundError`**
 Run it as `python3 -m pytest python` from the repository root, so the modules
 resolve.
+
+**`Error: cannot open ../spec/expenses_large.csv` from `run_bench`**
+Generate the fixture first with `python3 spec/gen_large_csv.py`. The C++
+benchmark's default path is relative to `cpp/`, which is where `make -C cpp
+bench` runs it. From anywhere else, pass `--file`.
 
 **Compiler errors mentioning `std::optional`**
 The compiler is defaulting to a pre-C++17 standard. The Makefile sets
