@@ -165,6 +165,7 @@ python3 python/main.py --file work.csv < spec/commands.txt
 Notes:
 
 - `--from` and `--to` are **inclusive** on both ends.
+- `search` folds case for ASCII letters only (A-Z), in both implementations. Accented letters match exactly.
 - Multiple `filter` criteria combine with AND. `filter` with no criteria
   matches everything.
 - `DESCRIPTION` is the rest of the line and may contain spaces.
@@ -283,7 +284,7 @@ Two layers, because each catches what the other cannot.
 
 ```bash
 make -C cpp test          # C++, 44 assertions
-python3 -m pytest python  # Python, 54 cases
+python3 -m pytest python  # Python, 56 cases
 ```
 
 Both suites cover the same cases, named in Section 6 of the planning document:

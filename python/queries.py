@@ -37,6 +37,16 @@ def filter_expenses(all_expenses: List[Expense], criteria: FilterCriteria) -> Li
     return [e for e in all_expenses if criteria.matches(e)]
 
 
+def _fold(text: str) -> bytes:
+    """ASCII-only case folding, the same rule as C++ std::tolower in the C locale.
+
+    str.lower() is Unicode-aware and would match "CAFE\u0301" differently from
+    the C++ side, breaking the byte-identical output contract. bytes.lower()
+    only touches A-Z, which is exactly the shared rule.
+    """
+    return text.encode("utf-8").lower()
+
+
 def search(all_expenses: List[Expense], text: str) -> List[Expense]:
-    needle = text.lower()
-    return [e for e in all_expenses if needle in e["description"].lower()]
+    needle = _fold(text)
+    return [e for e in all_expenses if needle in _fold(e["description"])]

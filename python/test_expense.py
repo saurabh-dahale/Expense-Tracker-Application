@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from expense import parse_amount, parse_date, parse_expense, to_csv
+from expense import format_date, parse_amount, parse_date, parse_expense, to_csv
 from formatting import SEPARATOR, format_row, format_summary_line
 
 
@@ -29,6 +29,11 @@ class TestDateParsing:
 
     def test_rejects_a_missing_separator(self):
         assert parse_date("20260901") is None
+
+    def test_format_zero_pads_the_year(self):
+        # strftime("%Y") gives "1" on glibc; the saved CSV would then fail to
+        # reload. isoformat() pads on every platform.
+        assert format_date(date(1, 1, 1)) == "0001-01-01"
 
 
 class TestAmountParsing:

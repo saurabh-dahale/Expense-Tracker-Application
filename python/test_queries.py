@@ -60,6 +60,14 @@ class TestSearch:
     def test_unmatched_term_yields_no_rows(self, expenses):
         assert search(expenses, "xyzzy") == []
 
+    def test_case_folding_is_ascii_only(self):
+        # Matches the C++ std::tolower behaviour, so both programs print the
+        # same rows. Unicode-aware str.lower() would match the second case.
+        rows = [parse_expense("2026-09-01,1.00,misc,Caf\u00c9 ECLAIR")]
+        assert len(search(rows, "ECLAIR")) == 1
+        assert len(search(rows, "Caf\u00c9")) == 1
+        assert search(rows, "caf\u00e9") == []
+
 
 class TestReferenceSemantics:
     """The measurement behind the memory-management section.
