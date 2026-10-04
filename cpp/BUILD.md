@@ -9,10 +9,11 @@ g++ 13.3 and clang 15.
 make -C cpp
 ```
 
-Produces two binaries in `cpp/`:
+Produces three binaries in `cpp/`:
 
 - `expense_tracker` the application
 - `run_tests` the unit test suite
+- `run_bench` the summary timing benchmark
 
 Flags are `-std=c++17 -Wall -Wextra -O2 -pthread`. Warnings are enabled because
 the type-system section of the Day 3 report cites compiler diagnostics as
@@ -25,6 +26,20 @@ make -C cpp test
 ```
 
 Exits 0 when every assertion passes, 1 otherwise.
+
+## Benchmark
+
+```
+python3 spec/gen_large_csv.py      # 1,000,000-row fixture, about 42 MB
+make -C cpp bench
+```
+
+Loads the file once, untimed, then times `summarize` and `summarizeParallel`
+alone across 1, 2, 4 and 8 threads, best and median of 5 runs. Every parallel
+result is checked against the sequential one first. Options: `--file PATH`
+(default `../spec/expenses_large.csv`, relative to `cpp/`), `--runs N`,
+`--threads 1,2,4,8`. `python/bench.py` is the Python mirror and prints the same
+table.
 
 ## Run
 
